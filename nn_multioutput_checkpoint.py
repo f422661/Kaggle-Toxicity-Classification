@@ -172,8 +172,9 @@ class NeuralNet(nn.Module):
 		self.embedding_dropout = SpatialDropout(0.3)
 		self.lstm1 = nn.LSTM(self.embedding_size, num_unit, bidirectional=True, batch_first=True)
 		self.lstm2 = nn.LSTM(num_unit*2, int(num_unit/2), bidirectional=True, batch_first=True)
-		self.linear1 = nn.Linear(num_unit*2, num_unit)
-		self.linear2 = nn.Linear(num_unit*2, num_unit)
+		self.attention = Attention(num_unit, MAX_LEN)
+		self.linear1 = nn.Linear(num_unit*3, num_unit)
+		self.linear2 = nn.Linear(num_unit*3, num_unit)
 		self.linear_out = nn.Linear(num_unit, 1)
 		self.linear_aux_out = nn.Linear(num_unit, 5)
 
@@ -181,11 +182,12 @@ class NeuralNet(nn.Module):
 
 		h_embedding = self.embedding(x)
 		h_embedding = self.embedding_dropout(h_embedding)
+
 		h_lstm1, _ = self.lstm1(h_embedding)
 		h_lstm2, _ = self.lstm2(h_lstm1)
 
 		# attention
-		# att = self.attention(x)
+		att = self.attention(h_lstm2)
 
 		# global average pooling
 		avg_pool = torch.mean(h_lstm2, 1)
@@ -194,7 +196,7 @@ class NeuralNet(nn.Module):
 		max_pool, _ = torch.max(h_lstm2, 1)
 
 		# concatenation
-		h = torch.cat((max_pool, avg_pool), 1)
+		h = torch.cat((max_pool, avg_pool,att), 1)
 
 		h_linear1 = F.relu(self.linear1(h))
 		h_linear2 = F.relu(self.linear2(h))
